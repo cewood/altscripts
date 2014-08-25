@@ -3,7 +3,7 @@
 SERVERLIST=($(vim --serverlist))
 INDEX=1
 
-if [ "$#" -eq 1 ] & [ -f $1 ]; then
+if [[ "$#" -eq 1 ]] && [ -f $1 ]; then
  echo
  if [ ! -z $SERVERLIST ]; then
   for ITEM in ${SERVERLIST[@]}; do
@@ -40,5 +40,5 @@ if [ "$#" -eq 1 ] & [ -f $1 ]; then
   fi
  fi
 else
- echo "Usage: $0 {filename}"
+ echo "Usage: $(basename $0) {filename}"
 fi
