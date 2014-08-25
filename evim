@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+
+SERVERLIST=($(vim --serverlist))
+INDEX=1
+
+if [ "$#" -eq 1 ] & [ -f $1 ]; then
+ echo
+ if [ ! -z $SERVERLIST ]; then
+  for ITEM in ${SERVERLIST[@]}; do
+   echo " $INDEX) $ITEM"
+   ((INDEX++))
+  done
+  echo
+  read -p "Please make your selection : " SERVER
+  
+  if [[ $SERVER =~ ^[0-9]+$ ]] && [[ $SERVER -ge 1 ]] && [[ $SERVER -lt $INDEX ]]; then
+   vim --servername ${SERVERLIST[(($SERVER-1))]} --remote $1 
+  fi
+ else
+  echo "No vim instances found, would you like to open one..."
+  echo
+  echo " 1) vim"
+  echo " 2) gvim"
+  echo " 3) exit"
+  echo
+  read -p "Please make your selection : " STARTVIM
+
+  if [[ $STARTVIM =~ ^[0-9]+$ ]]; then
+   case $STARTVIM in
+    1)
+     vim --servername VIM $1
+    ;;
+    2)
+     gvim --servername GVIM $1
+    ;;
+    3)
+     exit 0
+    ;;
+   esac
+  fi
+ fi
+else
+ echo "Usage: $0 {filename}"
+fi
