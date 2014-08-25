@@ -5,7 +5,7 @@ INDEX=1
 
 if [[ "$#" -eq 1 ]] && [ -f $1 ]; then
  echo
- if [ ! -z $SERVERLIST ]; then
+ if [ ! -z $SERVERLIST ] && [[ ${#SERVERLIST[@]} -gt 1 ]]; then
   for ITEM in ${SERVERLIST[@]}; do
    echo " $INDEX) $ITEM"
    ((INDEX++))
@@ -16,6 +16,8 @@ if [[ "$#" -eq 1 ]] && [ -f $1 ]; then
   if [[ $SERVER =~ ^[0-9]+$ ]] && [[ $SERVER -ge 1 ]] && [[ $SERVER -lt $INDEX ]]; then
    vim --servername ${SERVERLIST[(($SERVER-1))]} --remote $1 
   fi
+ elif [[ ${#SERVERLIST[@]} -eq 1 ]]; then
+  vim --servername ${SERVERLIST[0]} --remote $1
  else
   echo "No vim instances found, would you like to open one..."
   echo
