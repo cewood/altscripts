@@ -1,0 +1,119 @@
+#!/usr/bin/env bash
+
+ME=`basename $0`
+
+## Print basic usage
+usage() {
+  echo "$ME -d base-dir -u repo-url -t repo-type -n repo-name [-m] [-h]"
+  echo
+  echo " -d  required: directory to base all operations from"
+  echo " -u  required: url of the repository to clone & merge"
+  echo " -t  required: type of the repository (git|svn)"
+  echo " -n  required: the name to clone the repository to"
+  echo " -m  optional: sub-folder/relative path to move the repo to"
+  echo " -h  optional: help, print this usage message"
+  exit 1
+}
+
+function finish() {
+ if [ $1 -eq 1 ]; then
+  echo "$TIMING$(basename $0)  ERROR: EXITING"
+ fi
+ exit $1
+}
+
+
+
+## Grab the options, and setup variables
+while getopts "d:u:t:n:m:h" opt; do
+  case $opt in
+    d)
+      if [[ $OPTARG =~ ^/.+$ ]]; then
+       BASEDIR=${OPTARG%/}
+      else
+       echo "$(ME)  directory must be an absolute path"
+       exit 1
+      fi
+      ;;
+    u)
+      if [[ $OPTARG =~ ^(git|http|https|svn)[A-Za-z0-9/:@.]+$ ]]; then
+       REPOURL=${OPTARG%/}
+      else
+       echo "$(ME)  url must be git or svn"
+       exit 1
+      fi
+      ;;
+    t)
+      if [[ $OPTARG =~ ^(git|svn)$ ]]; then
+       REPOTYPE=${OPTARG}
+      else
+       echo "$(ME)  type must be git or svn"
+       exit 1
+      fi
+      ;;
+    n)
+      if [[ $OPTARG =~ ^[A-Za-z_-]+$ ]]; then
+       REPONAME=${OPTARG}
+      else
+       echo "$(ME)  name can only contain [A-Za-z_-]"
+       exit 1
+      fi
+      ;;
+    m)
+      if [[ $OPTARG =~ ^[A-Za-z_-/]+$ ]]; then
+       MERGENAME=${OPTARG%/}
+       MERGENAME=${MERGENAME#/}
+      else
+       echo "$(basename $0)  merge name/parent folder can only contain [AZaz_-/]"
+       exit 1
+      fi
+      ;;
+    h)
+      usage
+      ;;
+    \?)
+      usage
+      ;;
+    :)
+      usage
+      ;;
+  esac
+done
+
+if [ ! -z $REPOTYPE ] && [ ! -z $BASEDIR ] && [ -d $BASEDIR ] && [ ! -z $REPOURL ] && [ ! -z $REPONAME ]; then
+ mkdir -v $BASEDIR/mainproject
+ cd $BASEDIR/mainproject
+ git init
+ cd $BASEDIR
+
+ case $REPOTYPE in
+  git) GITCOMMAND="git clone" ;;
+  svn) GITCOMMAND="git svn clone" ;;
+ esac
+
+ eval $GITCOMMAND $REPOURL $REPONAME
+ cd $REPONAME
+
+ if [ -z $MERGENAME ]; then
+  MERGENAME=$REPONAME
+  MERGEPATH=$REPONAME
+ else
+  MERGEPATH=$MERGENAME/$REPONAME
+ fi
+
+ MERGEBASE=${MERGEPATH%%/*}
+
+ git filter-branch -f --prune-empty --tree-filter "mkdir -p .$MERGEPATH; mv ./* .$MERGEPATH/; mv {.,}$MERGEBASE" HEAD
+ git mv .* $MERGEPATH/
+ git commit --no-edit -am "Move project into $MERGEPATH subdirectory."
+ git gc --aggressive
+ cd $BASEDIR/mainproject
+ git remote add $REPONAME ../$REPONAME
+ git fetch $REPONAME
+ git merge --no-edit $REPONAME/master
+ git remote rm $REPONAME
+ git gc --aggressive
+ cd $BASEDIR
+else
+ usage
+fi
