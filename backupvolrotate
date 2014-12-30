@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+set -e
+
+# Variables
+disk[1]='80db7a3f-71ea-4ed0-89e4-62a8340ef125'
+disk[2]='319936c0-fddf-4293-92bd-60afe19948a5'
+disk[3]='28dd8515-d1e4-42b6-9ba9-1fa8fccbe686'
+disk[4]='8f16a994-f65b-46ad-ba44-831cbfeda0a4'
+disk[5]='15fe89b8-42b6-fddf-71ea-82dfa92928c9'
+
+
+# Check for dependencies
+command basename --version > /dev/null 2>&1 || ( echo "FATAL: Basename dependency missing, exiting." && exit 1 ) 
+command readlink --version > /dev/null 2>&1 || ( echo "FATAL: Readlink dependency missing, exiting." && exit 1 ) 
+
+# Example layout
+# /backups/80db7a3f-71ea-4ed0-89e4-62a8340ef125
+# /backups/319936c0-fddf-4293-92bd-60afe19948a5
+# /backups/current => /backups/...60afe19948a5
+
+
+# Ensure our mount target folder exists
+for disk in ${disk[@]}; do
+  mkdir -pv /backups/$disk
+done
+
+if [ -e "/backups/current" ]; then
+  CURRENT=$(basename $(readlink /backups/current))
+  echo "Current target: $CURRENT"
+
+  for (( i=0; i<${#disk[@]}; i++ )); 
+  do  
+    if [ "${disk[$i]}" = "$CURRENT" ]; then
+      i=$((i+1))
+
+      while true; do
+        if [ "$i" -lt "${#disk[@]}" ] && [ -e "/dev/disk/by-uuid/${disk[$i]}" ]; then
+          NEXT=${disk[$i]}
+          echo "Updating target: $NEXT"
+          break
+        elif [ "$((i+1))" -lt "${#disk[@]}" ]; then
+          echo "Checking target: ${disk[$i]}"
+          i=$((i+1))
+        elif [ "$((i+1))" -ge "${#disk[@]}" ]; then
+          echo "Checking target: ${disk[$i]}"
+          i=1 
+        fi  
+      done
+      break
+    fi  
+  done
+
+  rm -f /backups/current
+  ln -s /backups/$NEXT /backups/current
+  mount /dev/disk/by-uuid/$NEXT /backups/$NEXT
+else
+  echo "Initialising target: ${disk[1]}"
+  ln -s /backups/${disk[1]} /backups/current
+fi
